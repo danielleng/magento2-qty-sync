@@ -2,6 +2,7 @@ const _ = require('lodash');
 // https://www.npmjs.com/package/request-promise
 const Request = require('request-promise-native');
 const Fs = require('fs');
+const FsPromise = require('fs').promises;
 
 const Logger = require('./logger');
 const salesHeroRequest = require('./requestConfigs').salesHeroRequest;
@@ -13,6 +14,7 @@ const getUpdateStockRequestTemplate = require('./requestConfigs').getUpdateStock
 let SKUS = 0;
 let SKUS_UPDATED = 0;
 let SKUS_NOT_ON_HOBISPORTS = [];
+let SKUS_TO_IGNORE_FROM_FILE = [];
 let TIME_START;
 let TIME_END;
 
@@ -71,12 +73,27 @@ async function updateStock(authToken, sku, salesHeroQty) {
   }
 }
 
+async function readIgnoreSkusFile() {
+  try {
+    const data = await FsPromise.readFile('ignore_skus.txt', 'utf8');
+    const processedData = _.map(data.toString().split("\n"), function(sku) {
+      return {
+        "item_code": sku
+      }
+    });
+    return processedData;
+  } catch (err) {
+    Logger.logError(err);
+  }
+}
+
 async function run() {
   try {
-    const args = process.argv.slice(2);
-
     TIME_START = new Date().toISOString();
     const [hobiSportsAuthToken, products] = await Promise.all([getHobiSportsAuthToken(), getProducts()]);
+
+    // Read ignore sku file
+    SKUS_TO_IGNORE_FROM_FILE = await readIgnoreSkusFile();
 
     // Filter only products with item_code and balqty field values
     let legitProducts = _.filter(products, (product) => {
@@ -87,11 +104,15 @@ async function run() {
         && product.balqty.length !== 0);
     });
 
+    // Remove skus to ignore
+    legitProducts = _.differenceBy(legitProducts, SKUS_TO_IGNORE_FROM_FILE, 'item_code');
+
     // Remove duplicates
     let uniqLegitProducts = _.uniqBy(legitProducts, (product) => {
       return product.item_code;
     });
     SKUS = uniqLegitProducts.length;
+    console.log(`Checking and updating quantity for ${SKUS} products...`);
 
     // Cycle through products and check if there is a change in stock
     for (const product of uniqLegitProducts) {
@@ -113,10 +134,22 @@ async function run() {
     TIME_END = new Date().toISOString();
     Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
 
-    let file = Fs.createWriteStream('ignore_skus.txt');
-    file.on('error', function(err) { /* error handling */ });
-    SKUS_NOT_ON_HOBISPORTS.forEach(function(sku) { file.write(sku + '\n'); });
-    file.end();
+    // Check for command line args
+    const args = process.argv.slice(2);
+    if (args.length > 0) {
+      switch(args[0]) {
+        case 'updateignoreskus':
+          console.log('Found command line arg \'updateignoreskus\', updating ignore_skus.txt...');
+          // Clear file and write skus to ignore
+          Fs.truncate('ignore_skus.txt', 0, function(){
+            let file = Fs.createWriteStream('ignore_skus.txt');
+            file.on('error', function(err) { /* error handling */ });
+            SKUS_NOT_ON_HOBISPORTS.forEach(function(sku) { file.write(sku + '\n'); });
+            file.end();
+          });
+          break;
+      }
+    }
 
   } catch (err) {
     Logger.logError(err);
