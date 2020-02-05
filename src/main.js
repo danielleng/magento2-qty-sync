@@ -26,6 +26,7 @@ async function getProducts() {
 
   } catch (err) {
     Logger.logError(err);
+    console.log(err);
   }
 }
 
@@ -36,6 +37,7 @@ async function getHobiSportsAuthToken() {
 
   } catch (err) {
     Logger.logError(err);
+    console.log(err);
   }
 }
 
@@ -66,6 +68,8 @@ async function updateStock(authToken, sku, salesHeroQty) {
       }
     }
     Logger.logError(`${errorMessage}`, err.statusCode);
+    console.log(err);
+
     if (err.statusCode === 404) {
       SKUS_NOT_ON_HOBISPORTS.push(sku);
     }
@@ -84,6 +88,7 @@ async function readIgnoreSkusFile() {
     return processedData;
   } catch (err) {
     Logger.logError(err);
+    console.log(err);
   }
 }
 
@@ -91,9 +96,8 @@ async function run() {
   try {
     TIME_START = new Date().toISOString();
     const [hobiSportsAuthToken, products] = await Promise.all([getHobiSportsAuthToken(), getProducts()]);
-
-    // Read ignore sku file
-    SKUS_TO_IGNORE_FROM_FILE = await readIgnoreSkusFile();
+    // Check for command line args
+    const args = process.argv.slice(2);
 
     // Filter only products with item_code and balqty field values
     let legitProducts = _.filter(products, (product) => {
@@ -104,14 +108,19 @@ async function run() {
         && product.balqty.length !== 0);
     });
 
-    // Remove skus to ignore
-    legitProducts = _.differenceBy(legitProducts, SKUS_TO_IGNORE_FROM_FILE, 'item_code');
+    if (args.length === 0) {
+      // Read ignore sku file and diff the list of products to remove SKUs that are ignored
+      SKUS_TO_IGNORE_FROM_FILE = await readIgnoreSkusFile();
+      legitProducts = _.differenceBy(legitProducts, SKUS_TO_IGNORE_FROM_FILE, 'item_code');
+    }
 
     // Remove duplicates
     let uniqLegitProducts = _.uniqBy(legitProducts, (product) => {
       return product.item_code;
     });
     SKUS = uniqLegitProducts.length;
+
+    Logger.logInfo(`Checking and updating quantity for ${SKUS} products...`, '---');
     console.log(`Checking and updating quantity for ${SKUS} products...`);
 
     // Cycle through products and check if there is a change in stock
@@ -130,29 +139,36 @@ async function run() {
       }
     };
 
-    // Complete by outputting custom information
-    TIME_END = new Date().toISOString();
-    Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
-
-    // Check for command line args
-    const args = process.argv.slice(2);
     if (args.length > 0) {
       switch(args[0]) {
         case 'updateignoreskus':
+          Logger.logInfo('Found command line arg \'updateignoreskus\', updating ignore_skus.txt...', '---');
           console.log('Found command line arg \'updateignoreskus\', updating ignore_skus.txt...');
           // Clear file and write skus to ignore
-          Fs.truncate('ignore_skus.txt', 0, function(){
+          Fs.truncate('ignore_skus.txt', 0, function() {
             let file = Fs.createWriteStream('ignore_skus.txt');
             file.on('error', function(err) { /* error handling */ });
             SKUS_NOT_ON_HOBISPORTS.forEach(function(sku) { file.write(sku + '\n'); });
             file.end();
+
+            // Complete by outputting custom information
+            TIME_END = new Date().toISOString();
+            Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
           });
           break;
+
+        default:
+          break;
       }
+    } else {
+      // Complete by outputting custom information
+      TIME_END = new Date().toISOString();
+      Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
     }
 
   } catch (err) {
     Logger.logError(err);
+    console.log(err);
   }
 }
 
