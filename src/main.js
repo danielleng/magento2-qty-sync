@@ -68,7 +68,6 @@ async function updateStock(authToken, sku, salesHeroQty) {
       }
     }
     Logger.logError(`${errorMessage}`, err.statusCode);
-    console.log(err);
 
     if (err.statusCode === 404) {
       SKUS_NOT_ON_HOBISPORTS.push(sku);
