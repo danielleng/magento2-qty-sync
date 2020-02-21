@@ -1,19 +1,19 @@
 const salesHeroRequest = {
   method: 'POST',
-  uri: 'https://salesheroserver.azurewebsites.net/SalesHero/webservice/deviceservice/wsstockitemtce.php',
+  uri: 'https://YOUR-WEB-API-URL-HERE/rest/v1/some-endpoint',
   headers: {
     'Content-Type': 'application/json',
-    'token': 'e7f2b3f557f020642ebe2ab05650fa6a',
+    'token': 'API-TOKEN-HERE',
   },
   json: true,
 };
 
 const hobiSportsAuthRequest = {
   method: 'POST',
-  uri: 'https://hobisports.com/rest/V1/integration/admin/token',
+  uri: 'https://MAGENTO-URL-HERE/rest/V1/integration/admin/token',
   body: {
-    username: 'hobisports',
-    password: '%HxZn4u2dZ!F4^gmfE0Q'
+    username: 'MAGENTO-USERNAME-HERE',
+    password: 'MAGENTO-PASSWORD-HERE'
   },
   json: true,
 }
@@ -21,10 +21,10 @@ const hobiSportsAuthRequest = {
 const getStockStatusRequestTemplate = (authToken, sku) => {
   return {
     method: 'GET',
-    uri: `https://hobisports.com/rest/V1/stockItems/${sku}`,
+    uri: `https://MAGENTO-URL-HERE/rest/V1/stockItems/${sku}`,
     headers: {
       'Authorization': `Bearer ${authToken}`,
-      'Host': 'hobisports.com',
+      'Host': 'MAGENTO-HOST-NAME-HERE',
       'Content-Type': 'application/json',
     },
     json: true
@@ -40,10 +40,10 @@ const getUpdateStockRequestTemplate = (authToken, sku, itemId, qty) => {
 
   return {
     method: 'PUT',
-    uri: `https://hobisports.com/rest/V1/products/${sku}/stockItems/${itemId}`,
+    uri: `https://MAGENTO-URL-HERE/rest/V1/products/${sku}/stockItems/${itemId}`,
     headers: {
       'Authorization': `Bearer ${authToken}`,
-      'Host': 'hobisports.com',
+      'Host': 'MAGENTO-HOST-NAME-HERE',
       'Content-Type': 'application/json',
     },
     body: payload,
