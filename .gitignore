@@ -1,3 +1,4 @@
 node_modules
 logs/*
 ignore_skus.txt
+src/requestConfigs.js
