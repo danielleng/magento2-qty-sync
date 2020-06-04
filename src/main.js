@@ -131,18 +131,11 @@ async function run() {
         serverQty = parseInt(product.balqty);
       }
 
-<<<<<<< HEAD
       if (typeof serverQty === 'number') {
         const updated = await updateStock(hobiSportsAuthToken, product.item_code, serverQty);
       } else {
         Logger.logWarning(`Server returned a quantity that cannot be parsed into a number: ${product.balqty}, for SKU: "${product.item_code}"`, '---');
         Logger.logWarning(`Type of serverQty: ${typeof serverQty}`);
-=======
-      if (serverQty) {
-        const updated = await updateStock(hobiSportsAuthToken, product.item_code, serverQty);
-      } else {
-        Logger.logWarning(`Server returned a quantity that cannot be parsed into a number for SKU: "${product.item_code}"`, '---');
->>>>>>> 67fdfe3dd4d535c1e8e37e064fddd13772292e83
       }
     };
 
