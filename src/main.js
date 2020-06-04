@@ -131,10 +131,11 @@ async function run() {
         serverQty = parseInt(product.balqty);
       }
 
-      if (serverQty) {
+      if (typeof serverQty === 'number') {
         const updated = await updateStock(hobiSportsAuthToken, product.item_code, serverQty);
       } else {
-        Logger.logWarning(`Server returned a quantity that cannot be parsed into a number for SKU: "${product.item_code}"`, '---');
+        Logger.logWarning(`Server returned a quantity that cannot be parsed into a number: ${product.balqty}, for SKU: "${product.item_code}"`, '---');
+        Logger.logWarning(`Type of serverQty: ${typeof serverQty}`);
       }
     };
 
