@@ -151,7 +151,10 @@ async function run() {
       }
 
       if (typeof serverQty === 'number') {
-        const updated = await updateStock(hobiSportsAuthToken, product.item_code, serverQty);
+        // 23-12-2022
+        // Eric: "Hey Daniel, can you subtract all the sql stock quantity data extracted through api by 5? Meaning if hobi website extract a certain's product quantity is 5, hobi website will show 'out of stock'. If the extracted quantity is 6, website will show '1 left'"
+        const subtractedServerQty = (serverQty - 5) > 0 ? (serverQty - 5) : 0;
+        const updated = await updateStock(hobiSportsAuthToken, product.item_code, subtractedServerQty);
       } else {
         Logger.logWarning(`Server returned a quantity that cannot be parsed into a number: ${product.balqty}, for SKU: "${product.item_code}"`, '---');
         Logger.logWarning(`Type of serverQty: ${typeof serverQty}`);
