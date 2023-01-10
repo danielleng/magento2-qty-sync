@@ -9,10 +9,12 @@ const salesHeroRequest = require('./requestConfigs').salesHeroRequest;
 const hobiSportsAuthRequest = require('./requestConfigs').hobiSportsAuthRequest;
 const getStockStatusRequestTemplate = require('./requestConfigs').getStockStatusRequestTemplate;
 const getUpdateStockRequestTemplate = require('./requestConfigs').getUpdateStockRequestTemplate;
+const getUpdateStockStatusRequestTemplate = require('./requestConfigs').getUpdateStockStatusRequestTemplate;
 
 // Global Trackers
 let SKUS = 0;
-let SKUS_UPDATED = 0;
+let SKUS_QTY_UPDATED = 0;
+let SKUS_STOCK_STATUS_UPDATED = 0;
 let SKUS_NOT_ON_HOBISPORTS = [];
 let SKUS_TO_IGNORE_FROM_FILE = [];
 let TIME_START;
@@ -46,15 +48,31 @@ async function updateStock(authToken, sku, salesHeroQty) {
     const stockStatusRequest = getStockStatusRequestTemplate(authToken, sku);
     const results = await Request(stockStatusRequest);
     const hobisportsQty = parseInt(results.qty);
+    const is_in_stock = results.is_in_stock;
 
     if (salesHeroQty !== hobisportsQty) {
-      const updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty);
-      const updatedStockResults = await Request(updateStockRequest);
+      let updateStockRequest;
+      // If quantity has changed, and hobisports stock is 0 and status is out of stock, we need to set the product status to back in stock.
+      if (hobisportsQty === 0 && (is_in_stock === false)) {
+        updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty, true);
+      } else {
+        updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty);
+      }
+      let updatedStockResults = await Request(updateStockRequest);
       Logger.logInfo(`Quantity update successful for SKU: "${sku}" | Old Quantity: ${hobisportsQty} | New Quantity: ${salesHeroQty}`, '200');
-      SKUS_UPDATED++;
+      SKUS_QTY_UPDATED++;
       return updatedStockResults;
 
     } else {
+      // If quantity remain unchanged, check stock status and update stock status accordingly.
+      if (hobisportsQty > 0 && is_in_stock !== true) {
+        let updateStockRequest;
+        updateStockRequest = getUpdateStockStatusRequestTemplate(authToken, sku, results.item_id, true);
+        let updatedStockResults = await Request(updateStockRequest);
+        Logger.logInfo(`Stock Status update successful for SKU: "${sku}" | Old is_in_stock: ${is_in_stock} | New is_in_stock: true`, '200');
+        SKUS_STOCK_STATUS_UPDATED++;
+        return updatedStockResults;
+      }
       Logger.logInfo(`Quantity unchanged for SKU: "${sku}"`, '200');
       return false;
     }
@@ -62,14 +80,15 @@ async function updateStock(authToken, sku, salesHeroQty) {
   } catch (err) {
     const parameters = err.error.parameters;
     let errorMessage = err.error.message;
-    if (parameters.length > 0) {
+    if (parameters && parameters.length > 0) {
       for (let i = 1; i <= parameters.length; i++) {
         errorMessage = errorMessage.replace(`%${i}`, parameters[i - 1]);
+        Logger.logError(`${errorMessage}`, err.statusCode);
       }
+    } else {
+      Logger.logError(err);
     }
-    Logger.logError(`${errorMessage}`, err.statusCode);
-
-    if (err.statusCode === 404) {
+    if (err.statusCode && err.statusCode === 404) {
       SKUS_NOT_ON_HOBISPORTS.push(sku);
     }
     return false;
@@ -153,7 +172,7 @@ async function run() {
 
             // Complete by outputting custom information
             TIME_END = new Date().toISOString();
-            Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
+            Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_QTY_UPDATED, SKUS_STOCK_STATUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
           });
           break;
 
@@ -163,7 +182,7 @@ async function run() {
     } else {
       // Complete by outputting custom information
       TIME_END = new Date().toISOString();
-      Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
+      Logger.logSummary(TIME_START, TIME_END, SKUS, SKUS_QTY_UPDATED, SKUS_STOCK_STATUS_UPDATED, SKUS_NOT_ON_HOBISPORTS.length);
     }
 
   } catch (err) {

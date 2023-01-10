@@ -51,13 +51,13 @@ const initLoggingMethods = (function() {
     })
   }
 
-  const logSummary = (startDate, endDate, totalSkus, totalSkusUpdated, totalSkusNotOnHobisports) => {
+  const logSummary = (startDate, endDate, totalSkus, totalSkusQtyUpdated, totalSkusStatusUpdated, totalSkusNotOnHobisports) => {
     const momentStart = Moment(startDate);
     const momentEnd = Moment(endDate);
     const minutes = momentEnd.diff(momentStart, 'minutes');
     logger.log({
       level: 'info',
-      message: `START: ${startDate} | END: ${endDate} | TIME: ${minutes} minutes | TOTAL SKUS UPDATED: [${totalSkusUpdated}] | TOTAL SKUS NOT ON HOBISPORTS: [${totalSkusNotOnHobisports}]`,
+      message: `START: ${startDate} | END: ${endDate} | TIME: ${minutes} minutes | TOTAL SKUS QTY UPDATED: [${totalSkusQtyUpdated}] | TOTAL SKUS STATUS UPDATED: [${totalSkusStatusUpdated}] | TOTAL SKUS NOT ON HOBISPORTS: [${totalSkusNotOnHobisports}]`,
       httpCode: '-',
     })
   }
