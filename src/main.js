@@ -22,9 +22,16 @@ let TIME_END;
 
 async function getProducts() {
   try {
+    /*
+    [
+      {
+        "ItemCode": "FB137366",
+        "RefPrice": 38.9,
+        "Qty": 61
+      },
+    */
     const res = await Request(salesHeroRequest);
-    const products = res.items;
-    return products;
+    return res;
 
   } catch (err) {
     Logger.logError(err);
@@ -100,7 +107,7 @@ async function readIgnoreSkusFile() {
     const data = await FsPromise.readFile('ignore_skus.txt', 'utf8');
     const processedData = _.map(data.toString().split("\n"), function(sku) {
       return {
-        "item_code": sku
+        "ItemCode": sku
       }
     });
     return processedData;
@@ -117,24 +124,24 @@ async function run() {
     // Check for command line args
     const args = process.argv.slice(2);
 
-    // Filter only products with item_code and balqty field values
+    // Filter only products with ItemCode and Qty field values
     let legitProducts = _.filter(products, (product) => {
       return (
-        product.item_code
-        && product.balqty
-        && product.item_code.length !== 0
-        && product.balqty.length !== 0);
+        product.ItemCode
+        && product.Qty
+        && product.ItemCode.length !== 0
+        && product.Qty.length !== 0);
     });
 
     if (args.length === 0) {
       // Read ignore sku file and diff the list of products to remove SKUs that are ignored
       SKUS_TO_IGNORE_FROM_FILE = await readIgnoreSkusFile();
-      legitProducts = _.differenceBy(legitProducts, SKUS_TO_IGNORE_FROM_FILE, 'item_code');
+      legitProducts = _.differenceBy(legitProducts, SKUS_TO_IGNORE_FROM_FILE, 'ItemCode');
     }
 
     // Remove duplicates
     let uniqLegitProducts = _.uniqBy(legitProducts, (product) => {
-      return product.item_code;
+      return product.ItemCode;
     });
     SKUS = uniqLegitProducts.length;
 
@@ -144,19 +151,19 @@ async function run() {
     // Cycle through products and check if there is a change in stock
     for (const product of uniqLegitProducts) {
       let serverQty;
-      if (product.balqty === '.0000') {
+      if (product.Qty === '.0000') {
         serverQty = 0;
       } else {
-        serverQty = parseInt(product.balqty);
+        serverQty = parseInt(product.Qty);
       }
 
       if (typeof serverQty === 'number') {
         // 23-12-2022
         // Eric: "Hey Daniel, can you subtract all the sql stock quantity data extracted through api by 5? Meaning if hobi website extract a certain's product quantity is 5, hobi website will show 'out of stock'. If the extracted quantity is 6, website will show '1 left'"
         const subtractedServerQty = (serverQty - 5) > 0 ? (serverQty - 5) : 0;
-        const updated = await updateStock(hobiSportsAuthToken, product.item_code, subtractedServerQty);
+        const updated = await updateStock(hobiSportsAuthToken, product.ItemCode, subtractedServerQty);
       } else {
-        Logger.logWarning(`Server returned a quantity that cannot be parsed into a number: ${product.balqty}, for SKU: "${product.item_code}"`, '---');
+        Logger.logWarning(`Server returned a quantity that cannot be parsed into a number: ${product.Qty}, for SKU: "${product.ItemCode}"`, '---');
         Logger.logWarning(`Type of serverQty: ${typeof serverQty}`);
       }
     };
