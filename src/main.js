@@ -1,15 +1,24 @@
-const _ = require('lodash');
+// const _ = require('lodash');
+import _ from 'lodash';
 // https://www.npmjs.com/package/request-promise
-const Request = require('request-promise-native');
-const Fs = require('fs');
-const FsPromise = require('fs').promises;
+// const Request = require('request-promise-native');
+import ky from 'ky';
+// const Fs = require('fs');
+import Fs from 'fs';
+// const FsPromise = require('fs').promises;
+import FsPromise from 'fs/promises';
 
-const Logger = require('./logger');
-const salesHeroRequest = require('./requestConfigs').salesHeroRequest;
-const hobiSportsAuthRequest = require('./requestConfigs').hobiSportsAuthRequest;
-const getStockStatusRequestTemplate = require('./requestConfigs').getStockStatusRequestTemplate;
-const getUpdateStockRequestTemplate = require('./requestConfigs').getUpdateStockRequestTemplate;
-const getUpdateStockStatusRequestTemplate = require('./requestConfigs').getUpdateStockStatusRequestTemplate;
+import Logger from './logger.js';
+
+// const salesHeroRequest = require('./requestConfigs').salesHeroRequest;
+// const hobiSportsAuthRequest = require('./requestConfigs').hobiSportsAuthRequest;
+// const getStockStatusRequestTemplate = require('./requestConfigs').getStockStatusRequestTemplate;
+// const getUpdateStockRequestTemplate = require('./requestConfigs').getUpdateStockRequestTemplate;
+// const getUpdateStockStatusRequestTemplate = require('./requestConfigs').getUpdateStockStatusRequestTemplate;
+
+import {salesHeroRequest, hobiSportsAuthRequest, getStockStatusRequestTemplate, getUpdateStockStatusRequestTemplate, getUpdateStockRequestTemplate} from './requestConfigs.js';
+
+import { default as axios } from 'axios';
 
 // Global Trackers
 let SKUS = 0;
@@ -30,8 +39,19 @@ async function getProducts() {
         "Qty": 61
       },
     */
-    const res = await Request(salesHeroRequest);
-    return res;
+    // const res = await Request();
+    // const res = await ky.get(salesHeroRequest.uri, {
+    //   headers: salesHeroRequest.headers,
+    //   json: salesHeroRequest.body,
+    // }).json();
+
+    const res = await axios.get(salesHeroRequest.uri, {
+      data: salesHeroRequest.body,
+      headers: salesHeroRequest.headers,
+    });
+    // console.log(res);
+
+    return res.data;
 
   } catch (err) {
     Logger.logError(err);
@@ -41,7 +61,11 @@ async function getProducts() {
 
 async function getHobiSportsAuthToken() {
   try {
-    const authToken = await Request(hobiSportsAuthRequest);
+    // const authToken = await Request(hobiSportsAuthRequest);
+    const authToken = await ky.post(hobiSportsAuthRequest.uri, {
+      headers: hobiSportsAuthRequest.headers,
+      json: hobiSportsAuthRequest.body,
+    }).json();
     return authToken;
 
   } catch (err) {
@@ -53,7 +77,11 @@ async function getHobiSportsAuthToken() {
 async function updateStock(authToken, sku, salesHeroQty) {
   try {
     const stockStatusRequest = getStockStatusRequestTemplate(authToken, sku);
-    const results = await Request(stockStatusRequest);
+    // const results = await Request(stockStatusRequest);
+    const results = await ky.get(stockStatusRequest.uri, {
+      headers: stockStatusRequest.headers
+    }).json();
+
     const hobisportsQty = parseInt(results.qty);
     const is_in_stock = results.is_in_stock;
 
@@ -65,7 +93,12 @@ async function updateStock(authToken, sku, salesHeroQty) {
       } else {
         updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty);
       }
-      let updatedStockResults = await Request(updateStockRequest);
+      // let updatedStockResults = await Request(updateStockRequest);
+      // console.log(updateStockRequest.uri);
+      let updatedStockResults = await ky.put(updateStockRequest.uri, {
+        headers: updateStockRequest.headers,
+        json: updateStockRequest.body,
+      }).json();
       Logger.logInfo(`Quantity update successful for SKU: "${sku}" | Old Quantity: ${hobisportsQty} | New Quantity: ${salesHeroQty}`, '200');
       SKUS_QTY_UPDATED++;
       return updatedStockResults;
@@ -75,7 +108,12 @@ async function updateStock(authToken, sku, salesHeroQty) {
       if (hobisportsQty > 0 && is_in_stock !== true) {
         let updateStockRequest;
         updateStockRequest = getUpdateStockStatusRequestTemplate(authToken, sku, results.item_id, true);
-        let updatedStockResults = await Request(updateStockRequest);
+        // let updatedStockResults = await Request(updateStockRequest);
+        // console.log(updateStockRequest.uri);
+        let updatedStockResults = await ky.put(updateStockRequest.uri, {
+          headers: updateStockRequest.headers,
+          json: updateStockRequest.body,
+        }).json();
         Logger.logInfo(`Stock Status update successful for SKU: "${sku}" | Old is_in_stock: ${is_in_stock} | New is_in_stock: true`, '200');
         SKUS_STOCK_STATUS_UPDATED++;
         return updatedStockResults;
@@ -85,20 +123,36 @@ async function updateStock(authToken, sku, salesHeroQty) {
     }
 
   } catch (err) {
-    const parameters = err.error.parameters;
-    let errorMessage = err.error.message;
-    if (parameters && parameters.length > 0) {
-      for (let i = 1; i <= parameters.length; i++) {
-        errorMessage = errorMessage.replace(`%${i}`, parameters[i - 1]);
-        Logger.logError(`${errorMessage}`, err.statusCode);
+    const {response} = err;
+    if (response && response.body) {
+      // error.message = `${response.body.message} (${response.status})`;
+      const errorText = `Error updating SKU: ${sku}. Received HTTP error: ${response.status}`;
+      console.log(errorText);
+      Logger.logError(errorText);
+
+      if (response.status === 404) {
+        SKUS_NOT_ON_HOBISPORTS.push(sku);
       }
     } else {
+      console.log(`Error updating SKU: ${sku}.`);
+      console.log(err);
       Logger.logError(err);
     }
-    if (err.statusCode && err.statusCode === 404) {
-      SKUS_NOT_ON_HOBISPORTS.push(sku);
-    }
+    
     return false;
+    // const parameters = err.error.parameters;
+    // let errorMessage = err.error.message;
+    // if (parameters && parameters.length > 0) {
+    //   for (let i = 1; i <= parameters.length; i++) {
+    //     errorMessage = errorMessage.replace(`%${i}`, parameters[i - 1]);
+    //     Logger.logError(`${errorMessage}`, err.statusCode);
+    //   }
+    // } else {
+    //   Logger.logError(err);
+    // }
+    // if (err.statusCode && err.statusCode === 404) {
+    //   SKUS_NOT_ON_HOBISPORTS.push(sku);
+    // }
   }
 }
 
@@ -201,4 +255,4 @@ async function run() {
   }
 }
 
-module.exports = run;
+export default run;

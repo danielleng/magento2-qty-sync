@@ -1,6 +1,11 @@
-const { createLogger, format, transports } = require('winston');
-require('winston-daily-rotate-file');
-const Moment = require('moment');
+// const { createLogger, format, transports } = require('winston');
+// import { createLogger, format, transports } from 'winston';
+import winstonPkg from 'winston';
+const { createLogger, format, transports } = winstonPkg;
+// require('winston-daily-rotate-file');
+import 'winston-daily-rotate-file';
+// const Moment = require('moment');
+import Moment from 'moment';
 
 const logFormat = format.printf(({ level, message, httpCode, timestamp }) => {
   return `${timestamp} [${httpCode}] ${level}: ${message}`;
@@ -26,7 +31,7 @@ const logger = createLogger({
   ]
 });
 
-const initLoggingMethods = (function() {
+const Logger = (function() {
   const logError = (message, httpCode) => {
     logger.log({
       level: 'error',
@@ -70,4 +75,5 @@ const initLoggingMethods = (function() {
   }
 }());
 
-module.exports = initLoggingMethods;
+// module.exports = initLoggingMethods;
+export default Logger;

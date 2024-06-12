@@ -1,59 +1,84 @@
-const salesHeroRequest = {
-  method: 'POST',
-  uri: 'https://YOUR-WEB-API-URL-HERE/rest/v1/some-endpoint',
+export const salesHeroRequest = {
+  method: 'GET',
+  uri: 'https://www.my-website.com/api/1234?code=1234ABCD',
   headers: {
     'Content-Type': 'application/json',
-    'token': 'API-TOKEN-HERE',
+    'Connection': 'keep-alive'
+  },
+  body: {
+    'HTTP_TOKEN':'1234ABCD'
   },
   json: true,
 };
 
-const hobiSportsAuthRequest = {
+export const hobiSportsAuthRequest = {
   method: 'POST',
-  uri: 'https://MAGENTO-URL-HERE/rest/V1/integration/admin/token',
+  uri: 'https://my-website.com/rest/V1/integration/admin/token',
+  headers: {
+    'Content-Type': 'application/json',
+    'Connection': 'keep-alive',
+  },
   body: {
-    username: 'MAGENTO-USERNAME-HERE',
-    password: 'MAGENTO-PASSWORD-HERE'
+    username: '1234ABCD',
+    password: '1234ABCD'
   },
   json: true,
 }
 
-const getStockStatusRequestTemplate = (authToken, sku) => {
+export const getStockStatusRequestTemplate = (authToken, sku) => {
   return {
     method: 'GET',
-    uri: `https://MAGENTO-URL-HERE/rest/V1/stockItems/${sku}`,
+    uri: `https://my-website.com/rest/V1/stockItems/${sku}`,
     headers: {
       'Authorization': `Bearer ${authToken}`,
-      'Host': 'MAGENTO-HOST-NAME-HERE',
+      'Host': 'my-website.com',
       'Content-Type': 'application/json',
+      'Connection': 'keep-alive',
     },
     json: true
   }
 }
 
-const getUpdateStockRequestTemplate = (authToken, sku, itemId, qty) => {
+export const getUpdateStockStatusRequestTemplate = (authToken, sku, itemId, is_in_stock) => {
   const payload = {
     'stockItem': {
-      'qty': qty
+      'is_in_stock': is_in_stock,
     }
   };
 
   return {
     method: 'PUT',
-    uri: `https://MAGENTO-URL-HERE/rest/V1/products/${sku}/stockItems/${itemId}`,
+    uri: `https://my-website.com/rest/V1/products/${sku}/stockItems/${itemId}`,
     headers: {
       'Authorization': `Bearer ${authToken}`,
-      'Host': 'MAGENTO-HOST-NAME-HERE',
+      'Host': 'my-website.com',
       'Content-Type': 'application/json',
+      'Connection': 'keep-alive',
     },
     body: payload,
     json: true,
   }
 }
 
-module.exports = {
-  salesHeroRequest,
-  hobiSportsAuthRequest,
-  getStockStatusRequestTemplate,
-  getUpdateStockRequestTemplate,
-};
+export const getUpdateStockRequestTemplate = (authToken, sku, itemId, qty, is_in_stock) => {
+  const payload = {
+    'stockItem': {
+      'qty': qty,
+    }
+  };
+  if (is_in_stock === true) {
+    payload.stockItem['is_in_stock'] = is_in_stock;
+  }
+
+  return {
+    method: 'PUT',
+    uri: `https://my-website.com/rest/V1/products/${sku}/stockItems/${itemId}`,
+    headers: {
+      'Authorization': `Bearer ${authToken}`,
+      'Host': 'my-website.com',
+      'Content-Type': 'application/json',
+    },
+    body: payload,
+    json: true,
+  }
+}
