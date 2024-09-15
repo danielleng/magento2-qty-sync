@@ -17,6 +17,7 @@
     "moment": "^2.24.0",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.8",
+    "undici": "^6.18.2",
     "winston": "^3.2.1",
     "winston-daily-rotate-file": "^4.3.0"
   }

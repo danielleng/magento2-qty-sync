@@ -1,3 +1,11 @@
+import { setGlobalDispatcher, Agent } from 'undici';
+// import dns from 'dns';
+setGlobalDispatcher(new Agent({ connect: { timeout: 60_000 } }) );
+
+// dns.lookup('hobisports.com', { all: true }, (err, addresses) => {
+//   console.log({ addresses, err });
+// });
+
 // const _ = require('lodash');
 import _ from 'lodash';
 // https://www.npmjs.com/package/request-promise
@@ -65,6 +73,7 @@ async function getHobiSportsAuthToken() {
     const authToken = await ky.post(hobiSportsAuthRequest.uri, {
       headers: hobiSportsAuthRequest.headers,
       json: hobiSportsAuthRequest.body,
+      timeout: 60000,
     }).json();
     return authToken;
 
@@ -74,12 +83,13 @@ async function getHobiSportsAuthToken() {
   }
 }
 
-async function updateStock(authToken, sku, salesHeroQty) {
+async function updateStock(authToken, sku, salesHeroQty, salesHeroPrice) {
   try {
     const stockStatusRequest = getStockStatusRequestTemplate(authToken, sku);
     // const results = await Request(stockStatusRequest);
     const results = await ky.get(stockStatusRequest.uri, {
-      headers: stockStatusRequest.headers
+      headers: stockStatusRequest.headers,
+      timeout: 60000,
     }).json();
 
     const hobisportsQty = parseInt(results.qty);
@@ -89,15 +99,16 @@ async function updateStock(authToken, sku, salesHeroQty) {
       let updateStockRequest;
       // If quantity has changed, and hobisports stock is 0 and status is out of stock, we need to set the product status to back in stock.
       if (hobisportsQty === 0 && (is_in_stock === false)) {
-        updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty, true);
+        updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty, true, salesHeroPrice);
       } else {
-        updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty);
+        updateStockRequest = getUpdateStockRequestTemplate(authToken, sku, results.item_id, salesHeroQty, false, salesHeroPrice);
       }
       // let updatedStockResults = await Request(updateStockRequest);
       // console.log(updateStockRequest.uri);
       let updatedStockResults = await ky.put(updateStockRequest.uri, {
         headers: updateStockRequest.headers,
         json: updateStockRequest.body,
+        timeout: 60000,
       }).json();
       Logger.logInfo(`Quantity update successful for SKU: "${sku}" | Old Quantity: ${hobisportsQty} | New Quantity: ${salesHeroQty}`, '200');
       SKUS_QTY_UPDATED++;
@@ -113,6 +124,7 @@ async function updateStock(authToken, sku, salesHeroQty) {
         let updatedStockResults = await ky.put(updateStockRequest.uri, {
           headers: updateStockRequest.headers,
           json: updateStockRequest.body,
+          timeout: 60000,
         }).json();
         Logger.logInfo(`Stock Status update successful for SKU: "${sku}" | Old is_in_stock: ${is_in_stock} | New is_in_stock: true`, '200');
         SKUS_STOCK_STATUS_UPDATED++;
@@ -183,6 +195,7 @@ async function run() {
       return (
         product.ItemCode
         && product.Qty
+        && !isNaN(product.RefPrice)
         && product.ItemCode.length !== 0
         && product.Qty.length !== 0);
     });
@@ -215,7 +228,7 @@ async function run() {
         // 23-12-2022
         // Eric: "Hey Daniel, can you subtract all the sql stock quantity data extracted through api by 5? Meaning if hobi website extract a certain's product quantity is 5, hobi website will show 'out of stock'. If the extracted quantity is 6, website will show '1 left'"
         const subtractedServerQty = (serverQty - 5) > 0 ? (serverQty - 5) : 0;
-        const updated = await updateStock(hobiSportsAuthToken, product.ItemCode, subtractedServerQty);
+        const updated = await updateStock(hobiSportsAuthToken, product.ItemCode, subtractedServerQty, product.RefPrice);
       } else {
         Logger.logWarning(`Server returned a quantity that cannot be parsed into a number: ${product.Qty}, for SKU: "${product.ItemCode}"`, '---');
         Logger.logWarning(`Type of serverQty: ${typeof serverQty}`);
